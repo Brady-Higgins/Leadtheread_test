@@ -81,6 +81,7 @@ def get_wiki_plot(title,wiki):
         for section in page.sections:
             section_words = [word.lower() for word in section.title.split(" ")]
             if "plot" in section_words or "summary" in section_words:
+                #check for multiple sub stories
                 return [f"WIKI:{res}",section.text]
     return None
 
@@ -88,6 +89,7 @@ def web_scrape():
     pass
 
 def generate_summary(title,client):
+    #error
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -99,17 +101,23 @@ def generate_summary(title,client):
     )
     return response.choices[0].message.content
 
-def upload(page_index,client):
-    page_batches = 100
+def upload(page_index):
+    page_batches = 1
+    client = init_openai()
     wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
     for i in range(page_index,page_index+page_batches):
         res = openlibrary_search(i)
         if not res:
+            print("Error in openlibrary")
             print(i)
             break
-        for title,author in res:
+        for book in res:
+            title,author = book.get("title"), book.get("author")
             if title != "Unknown Title":
                 plot = get_wiki_plot(title,wiki)
+                if len(plot.split(" ")) < 100:
+                    #write to error log
+                    pass
                 if not plot:
                     query = title + " by " + author
                     plot = generate_summary(query,client)
@@ -126,4 +134,5 @@ def upload(page_index,client):
 
 if __name__=="__main__":
     # print(openlibrary_search(1))
-    get_wiki_plot("Harry Potter and the Philosopher's Stone")
+    # get_wiki_plot("Harry Potter and the Philosopher's Stone")
+    upload(1)
