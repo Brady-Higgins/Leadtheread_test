@@ -8,7 +8,7 @@
        - OpenLibrary API : search by subject:Fiction then probably track page number, result number, etc.
        - Google Books : good alternative, not likely to go down
     b. plot search algorithm
-        - check if wiki has the book 
+        - check if wiki has the book (look into better wiki search)
         - 
         - ask chatgpt to generate a short plot description if it knows the book else ignore
 2. Embed plots

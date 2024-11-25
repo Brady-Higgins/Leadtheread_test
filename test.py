@@ -15,6 +15,8 @@ import time
 
 
 
+
+
 def embed(text, client):
     response = client.embeddings.create(
     input=text,
@@ -28,6 +30,19 @@ def init_pinecone():
     index = pc.Index("leadtheread")
     time.sleep(1)
     return index 
+
+def generate_summary(title,client):
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You summarize books, if you don't know the book say only 'Unknown'"},  # System role
+            {"role": "user", "content": f"Please summarize the book {title}, in a way that spoils the plot and reveals key moments and characters"}  
+        ],
+        temperature=0.7,  # Adjust creativity (0.0 for deterministic, 1.0 for more random)
+        max_tokens=400,   # Limit the response length
+    )
+    return response.choices[0].message.content
+
 
 def init_openai():
     openai_key = os.getenv("OPENAI_KEY")
@@ -65,7 +80,8 @@ if __name__=="__main__":
     # emb = embed(text=text1,client=openai_client)
     # print(emb)
     # upsert(index,emb,"The Boy Who Went Magic","9781338217148","2")
-    query_embedding = embed("Magic boy goes on adventures at hogwarts.",openai_client)
-    resp = query(index,query_embedding)
-    print(resp)
+    # query_embedding = embed("Magic boy goes on adventures at hogwarts.",openai_client)
+    # resp = query(index,query_embedding)
+    # print(resp)
+    print(generate_summary("Crime and Punishment",openai_client))
     
