@@ -262,11 +262,11 @@ if __name__=="__main__":
     # print(openlibrary_search(1))
     # get_wiki_plot("Harry Potter and the Philosopher's Stone")
 
-    # upload(1)
+    upload(1)
     
-    index = init_pinecone()
-    res = query(index,"Misha and Ryen, who are both in high school. They are also pen pals, although they have never met face to face before. Misha is punk and in a band and has piercings. Ryen is a cheerleader and preppy ")
-    print(res)
+    # index = init_pinecone()
+    # res = query(index,"Misha and Ryen, who are both in high school. They are also pen pals, although they have never met face to face before. Misha is punk and in a band and has piercings. Ryen is a cheerleader and preppy ")
+    # print(res)
     # wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
     
     # print(get_wiki_plot("Harry Potter and the Philosopher's Stone",wiki))
