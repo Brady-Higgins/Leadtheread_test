@@ -44,15 +44,19 @@ def init_pinecone():
     return index 
 
 def upsert(index,embedding,title,ISBN,id):
+    if ISBN == None:
+        ISBN = "None"
     meta = {'title':title,'ISBN':ISBN}
     vector = [{
-        'id':id,
+        'id':str(id),
         'values':embedding,
         'metadata': meta
     }]
     index.upsert(vectors=vector)
 
-def query(index,embedding):
+def query(index,q):
+    client = init_openai()
+    embedding = embed(q,client)
     resp = index.query(
         vector = embedding,
         top_k = 2,
@@ -162,7 +166,6 @@ def get_wiki_plot(title,wiki):
                 #get isbn
                 time.sleep(.2)
                 isbn = get_isbn_wiki(res)
-                print(isbn)
                 return [f"WIKI:{res}",plot,isbn]
     return None
 
@@ -177,7 +180,15 @@ def extract_isbn(content):
         return match.group(1).replace("-", "")  # Remove hyphens for a clean ISBN
     return None
 
+def contains_illegal_char(s):
+    legal_pattern = re.compile(
+        r"[\u3000-\u303F\u4E00-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF"
+        r"\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF"  
+        r"\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF"  
+        r"\u0D00-\u0D7F\u0D80-\u0DFF\u0E00-\u0E7F]"              
+    )
 
+    return bool(legal_pattern.search(s))
 
 def web_scrape():
     pass
@@ -195,27 +206,30 @@ def generate_summary(title,client):
     )
     return response.choices[0].message.content
 
-def upload(page_index):
-    page_batches = 1
+def upload(page_batches):
     openai_client = init_openai()
     index = init_pinecone()
     wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
+    with open("last_page_index.txt", "r", encoding="utf-8") as file:
+        lines = file.readlines()
+        if lines: 
+            last_line = lines[-1]
+    file.close()
+    page_index = int(last_line.split(",")[1].strip().split(":")[1])
+    id_num = int(last_line.split(",")[3].strip().split(":")[1])
     for i in range(page_index,page_index+page_batches):
-        with open("last_page_index.txt", "r", encoding="utf-8") as file:
-            lines = file.readlines()
-            if lines: 
-                last_line = lines[-1]
-        file.close()
-        page_index = last_line.split(",")[1].strip().split(":")[1]
-        id_num = last_line.split(",")[3].strip().split(":")[1]
         res = openlibrary_search(i)
         if not res:
             print("Error in openlibrary")
             print(i)
-            break
+            return None
         AI_used = 0
         for book in res:
-            title,author = book.get("title"), book.get("author")
+            title, author = book.get("title"), book.get("author")
+            print(title)
+            if contains_illegal_char(title):
+                print(f"{title}------------------------")
+                continue
             if title != "Unknown Title":
                 wiki_res = get_wiki_plot(title,wiki)
                 if not wiki_res:
@@ -234,12 +248,12 @@ def upload(page_index):
             plot = plot.encode("utf-8", errors="ignore").decode("utf-8")
             emb = embed(text=plot,client=openai_client)
             upsert(index,emb,title,isbn,id_num)
-            id_num+=1
+            id_num += 1
 
 
     print(f"Last Page Index: {i}")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open("last_page_index.txt", "w") as file:
+    with open("last_page_index.txt", "a") as file:
         # timestamp, last_completed_search_page_index, times AI was used to generate summary, last_id uploaded to vector db
         file.write(f"{timestamp}, page_index:{str(i+1)}, AI:{AI_used}, id:{id_num}\n")
     file.close()
@@ -247,7 +261,12 @@ def upload(page_index):
 if __name__=="__main__":
     # print(openlibrary_search(1))
     # get_wiki_plot("Harry Potter and the Philosopher's Stone")
-    upload(1)
+
+    # upload(1)
+    
+    index = init_pinecone()
+    res = query(index,"Misha and Ryen, who are both in high school. They are also pen pals, although they have never met face to face before. Misha is punk and in a band and has piercings. Ryen is a cheerleader and preppy ")
+    print(res)
     # wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
     
     # print(get_wiki_plot("Harry Potter and the Philosopher's Stone",wiki))
