@@ -152,12 +152,14 @@ def get_wiki_plot(title,wiki):
     if not len(search_results):
         search_results = wikipedia.search(title + " (novel)")
         if not len(search_results):
-            return None
+            search_results = wikipedia.search(title + " (movie)")
+            if not len(search_results):
+                return None
     for res in search_results:
         page = wiki.page(res)
         for section in page.sections:
             section_words = [word.lower() for word in section.title.split(" ")]
-            if "plot" in section_words or "summary" in section_words:
+            if "plot" in section_words or "summary" in section_words or "synopsis" in section_words:
                 plot = section.text
                 for subsection in section.sections:
                     plot += subsection.text
@@ -262,7 +264,7 @@ if __name__=="__main__":
     # print(openlibrary_search(1))
     # get_wiki_plot("Harry Potter and the Philosopher's Stone")
 
-    upload(1)
+    upload(2)
     
     # index = init_pinecone()
     # res = query(index,"Misha and Ryen, who are both in high school. They are also pen pals, although they have never met face to face before. Misha is punk and in a band and has piercings. Ryen is a cheerleader and preppy ")
