@@ -62,7 +62,11 @@ def query(index,q):
         top_k = 2,
         include_metadata=True
     )
-    return resp
+    condensed_resp = []
+    for r in resp.get("matches"):
+        meta = r.get("metadata")
+        condensed_resp.append({"title":meta.get("title"),"ISBN":meta.get("ISBN"), "score":r.get("score")})
+    return condensed_resp
 
 
 def init_openai():
@@ -183,6 +187,7 @@ def extract_isbn(content):
     return None
 
 def contains_illegal_char(s):
+    #TODO: ignore russian
     legal_pattern = re.compile(
         r"[\u3000-\u303F\u4E00-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF"
         r"\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF"  
@@ -201,12 +206,33 @@ def generate_summary(title,client):
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You summarize and spoil books with key details, plot points, and character names. You do not have any biases nor thoughts about the books, you simply explain them in 500 words or less."},  # System role
-            {"role": "user", "content": f"Summarize the book: {title}"}  
+            {"role": "user", "content": f"Summarize the book: {title}. If you don't know it or if the book isn't a fiction book, only say 'Unknown'."}  
         ],
         temperature=0.7,  
         max_tokens=400,  
     )
     return response.choices[0].message.content
+
+# def update_books_added(page_batches):
+#     page_index = 1
+#     with open("books_added.txt", "a", encoding="utf-8") as file:
+#         for i in range(page_index,page_index+page_batches):
+#             res = openlibrary_search(i)
+#             if not res:
+#                 print("Error in openlibrary")
+#                 print(i)
+#                 return None
+#             for book in res:
+#                 title, author = book.get("title"), book.get("author")
+#                 if contains_illegal_char(title):
+#                     print(f"{title}------------------------")
+#                     continue
+#                 authors = ""
+#                 for a in author:
+#                     authors+=f"{a}, "
+                
+#                 file.write(f"{title} by {authors} \n")
+#     file.close()
 
 def upload(page_batches):
     openai_client = init_openai()
@@ -219,40 +245,41 @@ def upload(page_batches):
     file.close()
     page_index = int(last_line.split(",")[1].strip().split(":")[1])
     id_num = int(last_line.split(",")[3].strip().split(":")[1])
-    for i in range(page_index,page_index+page_batches):
-        res = openlibrary_search(i)
-        if not res:
-            print("Error in openlibrary")
-            print(i)
-            return None
-        AI_used = 0
-        for book in res:
-            title, author = book.get("title"), book.get("author")
-            print(title)
-            if contains_illegal_char(title):
-                print(f"{title}------------------------")
-                continue
-            if title != "Unknown Title":
-                wiki_res = get_wiki_plot(title,wiki)
-                if not wiki_res:
-                    AI_used +=1
-                    authors = ", ".join(author)
-                    query = title + " by " + authors
-                    print(query)
-                    plot = generate_summary(query,openai_client)
-                    if plot == "Unknown":
-                        continue
-                    isbn = None
-                else:
-                    plot = wiki_res[1]
-                    isbn = wiki_res[2]
+    with open("books_added.txt", "a", encoding="utf-8") as file:
+        for i in range(page_index,page_index+page_batches):
+            res = openlibrary_search(i)
+            if not res:
+                print("Error in openlibrary")
+                print(i)
+                return None
+            AI_used = 0
+            for book in res:
+                title, author = book.get("title"), book.get("author")
+                print(title)
+                if contains_illegal_char(title):
+                    print(f"{title}------------------------")
+                    continue
+                if title != "Unknown Title":
+                    wiki_res = get_wiki_plot(title,wiki)
+                    if not wiki_res:
+                        AI_used +=1
+                        authors = ", ".join(author)
+                        query = title + " by " + authors
+                        print(query)
+                        plot = generate_summary(query,openai_client)
+                        if plot == "Unknown":
+                            continue
+                        isbn = None
+                    else:
+                        plot = wiki_res[1]
+                        isbn = wiki_res[2]
 
-            plot = plot.encode("utf-8", errors="ignore").decode("utf-8")
-            emb = embed(text=plot,client=openai_client)
-            upsert(index,emb,title,isbn,id_num)
-            id_num += 1
-
-
+                plot = plot.encode("utf-8", errors="ignore").decode("utf-8")
+                emb = embed(text=plot,client=openai_client)
+                upsert(index,emb,title,isbn,id_num)
+                id_num += 1
+                file.write(f"{title} by {authors} \n")
+    file.close()
     print(f"Last Page Index: {i}")
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open("last_page_index.txt", "a") as file:
@@ -264,10 +291,10 @@ if __name__=="__main__":
     # print(openlibrary_search(1))
     # get_wiki_plot("Harry Potter and the Philosopher's Stone")
 
-    upload(2)
+    upload2(14)
     
     # index = init_pinecone()
-    # res = query(index,"Misha and Ryen, who are both in high school. They are also pen pals, although they have never met face to face before. Misha is punk and in a band and has piercings. Ryen is a cheerleader and preppy ")
+    # res = query(index,"high school girl meets vampire and werewolf")
     # print(res)
     # wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
     
