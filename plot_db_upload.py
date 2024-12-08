@@ -59,7 +59,7 @@ def query(index,q):
     embedding = embed(q,client)
     resp = index.query(
         vector = embedding,
-        top_k = 2,
+        top_k = 50,
         include_metadata=True
     )
     condensed_resp = []
@@ -245,6 +245,7 @@ def upload(page_batches):
     file.close()
     page_index = int(last_line.split(",")[1].strip().split(":")[1])
     id_num = int(last_line.split(",")[3].strip().split(":")[1])
+    AI_used = 0
     with open("books_added.txt", "a", encoding="utf-8") as file:
         for i in range(page_index,page_index+page_batches):
             res = openlibrary_search(i)
@@ -252,7 +253,7 @@ def upload(page_batches):
                 print("Error in openlibrary")
                 print(i)
                 return None
-            AI_used = 0
+            
             for book in res:
                 title, author = book.get("title"), book.get("author")
                 print(title)
@@ -278,6 +279,9 @@ def upload(page_batches):
                 emb = embed(text=plot,client=openai_client)
                 upsert(index,emb,title,isbn,id_num)
                 id_num += 1
+                authors = ""
+                for a in author:
+                    authors+=f"{a}, "
                 file.write(f"{title} by {authors} \n")
     file.close()
     print(f"Last Page Index: {i}")
@@ -291,10 +295,10 @@ if __name__=="__main__":
     # print(openlibrary_search(1))
     # get_wiki_plot("Harry Potter and the Philosopher's Stone")
 
-    upload2(14)
+    upload(5)
     
     # index = init_pinecone()
-    # res = query(index,"high school girl meets vampire and werewolf")
+    # res = query(index,"The protagonist, Matt, is a clone of El Patrón. For the first six years of his life, he lives in a small house on the edge of the poppy fields with Celia, a cook working in El Patrón's mansion. When he is discovered by three children, Emilia, Steven, and Maria, he smashes a window and jumps out of the house. Unaware of the danger of jumping barefoot onto smashed glass, he has to be carried to El Patrón's mansion to be treated for his injuries.")
     # print(res)
     # wiki = wikipediaapi.Wikipedia(user_agent="LeadTheRead/0.0 (http://leadtheread.com; leadtheread@gmail.com)")
     
